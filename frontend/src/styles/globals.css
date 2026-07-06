@@ -1,0 +1,439 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px; /* Larger base font for mobile accessibility */
+  --background: #ffffff;
+  --foreground: #2C2C2C;
+  --card: #ffffff;
+  --card-foreground: #2C2C2C;
+  --popover: #ffffff;
+  --popover-foreground: #2C2C2C;
+  --primary: #4CAF50;
+  --primary-foreground: #ffffff;
+  --secondary: #F8F9FA;
+  --secondary-foreground: #2C2C2C;
+  --muted: #F5F5F5;
+  --muted-foreground: #666666;
+  --accent: #FFD54F;
+  --accent-foreground: #2C2C2C;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: transparent;
+  --input-background: #F8F9FA;
+  --switch-background: #E0E0E0;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #4CAF50;
+  --radius: 1rem; /* More rounded for friendly feel */
+  
+  /* Arogya+ AI Brand Colors */
+  --wellness-green: #4CAF50;
+  --wellness-green-light: #81C784;
+  --wellness-green-lighter: #C8E6C9;
+  --wellness-yellow: #FFD54F;
+  --wellness-yellow-light: #FFF176;
+  --wellness-yellow-lighter: #FFF9C4;
+  --wellness-blue: #2196F3;
+  --wellness-blue-light: #64B5F6;
+  --wellness-blue-lighter: #E3F2FD;
+  --wellness-white: #FFFFFF;
+  --wellness-gray: #F5F5F5;
+  --wellness-text-dark: #2C2C2C;
+  --wellness-text-light: #666666;
+  --wellness-text-lighter: #999999;
+  
+  /* Progress colors */
+  --progress-bg: #E8F5E8;
+  --progress-fill: #4CAF50;
+  --warning: #FF9800;
+  --info: #2196F3;
+  
+  /* Healthcare theme colors */
+  --healthcare-primary: #2196F3;
+  --healthcare-secondary: #4CAF50;
+  --healthcare-accent: #00BCD4;
+  --healthcare-background: #F8F9FA;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Brand color utilities */
+  --color-wellness-green: var(--wellness-green);
+  --color-wellness-green-light: var(--wellness-green-light);
+  --color-wellness-green-lighter: var(--wellness-green-lighter);
+  --color-wellness-yellow: var(--wellness-yellow);
+  --color-wellness-yellow-light: var(--wellness-yellow-light);
+  --color-wellness-yellow-lighter: var(--wellness-yellow-lighter);
+  --color-wellness-blue: var(--wellness-blue);
+  --color-wellness-blue-light: var(--wellness-blue-light);
+  --color-wellness-blue-lighter: var(--wellness-blue-lighter);
+  --color-wellness-white: var(--wellness-white);
+  --color-wellness-gray: var(--wellness-gray);
+  --color-wellness-text-dark: var(--wellness-text-dark);
+  --color-wellness-text-light: var(--wellness-text-light);
+  --color-wellness-text-lighter: var(--wellness-text-lighter);
+  --color-progress-bg: var(--progress-bg);
+  --color-progress-fill: var(--progress-fill);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-healthcare-primary: var(--healthcare-primary);
+  --color-healthcare-secondary: var(--healthcare-secondary);
+  --color-healthcare-accent: var(--healthcare-accent);
+  --color-healthcare-background: var(--healthcare-background);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+/**
+ * Base typography with rounded, friendly feel
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: 1.75rem; /* 28px */
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    h2 {
+      font-size: 1.5rem; /* 24px */
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-size: 1.25rem; /* 20px */
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    h4 {
+      font-size: 1.125rem; /* 18px */
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    p {
+      font-size: 1rem; /* 16px */
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    label {
+      font-size: 0.9rem; /* 14px */
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: 1rem; /* 16px */
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: 1rem; /* 16px */
+      font-weight: 400;
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Mobile-first accessibility and wellness utilities */
+@layer utilities {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .wellness-green {
+    background-color: var(--wellness-green);
+  }
+  
+  .wellness-yellow {
+    background-color: var(--wellness-yellow);
+  }
+  
+  .wellness-gray {
+    background-color: var(--wellness-gray);
+  }
+  
+  .text-wellness-green {
+    color: var(--wellness-green);
+  }
+  
+  .text-wellness-yellow {
+    color: var(--wellness-yellow);
+  }
+  
+  .text-wellness-dark {
+    color: var(--wellness-text-dark);
+  }
+  
+  .text-wellness-light {
+    color: var(--wellness-text-light);
+  }
+  
+  .border-wellness-green {
+    border-color: var(--wellness-green);
+  }
+  
+  .border-wellness-yellow {
+    border-color: var(--wellness-yellow);
+  }
+  
+  .gradient-wellness {
+    background: linear-gradient(135deg, var(--wellness-green) 0%, var(--wellness-green-light) 100%);
+  }
+  
+  .gradient-sunshine {
+    background: linear-gradient(135deg, var(--wellness-yellow) 0%, var(--wellness-yellow-light) 100%);
+  }
+  
+  .shadow-wellness {
+    box-shadow: 0 4px 16px rgba(76, 175, 80, 0.15);
+  }
+  
+  .shadow-sunshine {
+    box-shadow: 0 4px 16px rgba(255, 213, 79, 0.2);
+  }
+  
+  .rounded-wellness {
+    border-radius: 1.5rem;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 1s ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Performance optimizations for rural/semi-urban connections */
+@layer base {
+  /* Reduce motion for low-end devices */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Optimize for slow connections */
+  .low-bandwidth * {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .low-bandwidth img {
+    background-color: #f0f0f0;
+  }
+  
+  /* Better focus indicators for accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--wellness-green);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  
+  /* Optimize font loading */
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+  }
+}
+
+/* Critical above-the-fold optimizations */
+@layer utilities {
+  .critical-content {
+    contain: layout style paint;
+  }
+  
+  .lazy-load {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .lazy-load.loaded {
+    opacity: 1;
+  }
+  
+  /* Optimize for touch devices */
+  .touch-optimized {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Fast loading states */
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
+  /* Connection status indicators */
+  .connection-slow {
+    border-left: 4px solid #ff9800;
+  }
+  
+  .connection-offline {
+    border-left: 4px solid #f44336;
+    opacity: 0.7;
+  }
+  
+  /* Lightweight button styles */
+  .btn-lightweight {
+    background: none;
+    border: 2px solid currentColor;
+    color: var(--wellness-green);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+  
+  .btn-lightweight:hover {
+    background-color: var(--wellness-green);
+    color: white;
+  }
+  
+  /* Compact layouts for smaller screens */
+  @media (max-width: 360px) {
+    .container-compact {
+      padding: 12px;
+    }
+    
+    .text-compact h1 {
+      font-size: 1.5rem;
+    }
+    
+    .text-compact h2 {
+      font-size: 1.25rem;
+    }
+    
+    .text-compact p {
+      font-size: 0.9rem;
+    }
+  }
+  
+  /* Data saver mode */
+  .data-saver {
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+  
+  .data-saver img {
+    max-width: 100px;
+    height: auto;
+  }
+  
+  /* Preload critical content */
+  .critical-font {
+    font-display: block;
+  }
+  
+  /* Optimize for Indian languages */
+  .hindi-text {
+    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+    line-height: 1.6;
+  }
+  
+  .regional-text {
+    font-family: 'Noto Sans', 'Inter', sans-serif;
+    line-height: 1.6;
+  }
+  
+  /* Rural-friendly color scheme */
+  .rural-mode {
+    --primary: #2E7D32; /* Darker green for better contrast */
+    --accent: #F57F17; /* Darker yellow for visibility */
+    --background: #FAFAFA; /* Slightly off-white to reduce eye strain */
+  }
+  
+  /* High contrast mode for accessibility */
+  @media (prefers-contrast: high) {
+    :root {
+      --wellness-green: #1B5E20;
+      --wellness-yellow: #E65100;
+      --border: rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  /* Reduce data usage animations */
+  @media (prefers-reduced-data: reduce) {
+    .background-image {
+      background-image: none !important;
+    }
+    
+    .gradient-wellness,
+    .gradient-sunshine {
+      background: var(--wellness-green) !important;
+    }
+  }
+}
