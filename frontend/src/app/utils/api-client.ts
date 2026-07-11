@@ -118,6 +118,7 @@ export interface DailyHealthLog {
   waterGlasses: number;
   steps: number;
   sleepHours: number | null;
+  caloriesConsumed: number;
   caloriesBurned: number;
   proteinGrams: number;
   mood: "low" | "okay" | "good" | "great";
@@ -148,6 +149,23 @@ export interface SleepLog {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NutritionAnalysis {
+  mealName: string;
+  confidence: "low" | "medium" | "high";
+  servingSize: string;
+  calories: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  fiberGrams: number;
+  sugarGrams: number;
+  sodiumMg: number;
+  micronutrients: string[];
+  healthNotes: string[];
+  cautions: string[];
+  source: "food-database" | "image-assisted-estimate" | "text-estimate";
 }
 
 export interface DailyPlanRecord {
@@ -1191,6 +1209,7 @@ class ApiClient {
       waterGlasses?: number;
       steps?: number;
       sleepHours?: number | null;
+      caloriesConsumed?: number;
       caloriesBurned?: number;
       proteinGrams?: number;
       mood?: DailyHealthLog["mood"];
@@ -1258,6 +1277,7 @@ class ApiClient {
           waterGlasses: 0,
           steps: 0,
           sleepHours: null,
+          caloriesConsumed: 0,
           caloriesBurned: 0,
           proteinGrams: 0,
           mood: "good",
@@ -1847,10 +1867,167 @@ class ApiClient {
   }
 
   async analyzeNutrition(foodName: string) {
-    return this.request("/nutrition/analyze", {
+    const cleanFoodName = foodName.trim();
+    if (!cleanFoodName) {
+      return {
+        success: false,
+        error: "Food name is required",
+        source: "local" as const,
+      };
+    }
+
+    if (runtimeConfig.firebaseFunctionsBaseUrl) {
+      const response = await this.requestFirebaseFunction<{
+        success: boolean;
+        analysis: NutritionAnalysis;
+      }>("/nutrition/analyze", {
+        method: "POST",
+        body: JSON.stringify({ foodName: cleanFoodName }),
+      });
+
+      if (response.success && response.data?.analysis) {
+        return {
+          success: true,
+          data: { analysis: response.data.analysis },
+          source: "remote" as const,
+        };
+      }
+    }
+
+    const remote = await this.request<{ analysis: NutritionAnalysis }>("/nutrition/analyze", {
       method: "POST",
-      body: JSON.stringify({ foodName }),
+      body: JSON.stringify({ foodName: cleanFoodName }),
     });
+    if (remote.success || !runtimeConfig.useMockFallback) return remote;
+
+    const lower = cleanFoodName.toLowerCase();
+    const presets: Array<{
+      terms: string[];
+      analysis: NutritionAnalysis;
+    }> = [
+      {
+        terms: ["dal", "chawal", "rice"],
+        analysis: {
+          mealName: "Dal chawal",
+          confidence: "high",
+          servingSize: "1 medium plate",
+          calories: 430,
+          proteinGrams: 16,
+          carbsGrams: 72,
+          fatGrams: 7,
+          fiberGrams: 9,
+          sugarGrams: 4,
+          sodiumMg: 520,
+          micronutrients: ["iron", "folate", "magnesium", "potassium"],
+          healthNotes: ["Good vegetarian protein pairing", "Fiber from dal supports fullness"],
+          cautions: ["Use controlled rice portion for weight loss or diabetes goals"],
+          source: "food-database",
+        },
+      },
+      {
+        terms: ["roti", "chapati", "sabzi"],
+        analysis: {
+          mealName: "Roti with sabzi",
+          confidence: "high",
+          servingSize: "2 rotis + 1 bowl sabzi",
+          calories: 360,
+          proteinGrams: 11,
+          carbsGrams: 62,
+          fatGrams: 8,
+          fiberGrams: 8,
+          sugarGrams: 6,
+          sodiumMg: 480,
+          micronutrients: ["vitamin A", "vitamin C", "iron", "zinc"],
+          healthNotes: ["Balanced everyday Indian meal", "Vegetables improve fiber and micronutrients"],
+          cautions: ["Oil and salt can change the estimate significantly"],
+          source: "food-database",
+        },
+      },
+      {
+        terms: ["paneer"],
+        analysis: {
+          mealName: "Paneer curry",
+          confidence: "high",
+          servingSize: "1 bowl",
+          calories: 410,
+          proteinGrams: 22,
+          carbsGrams: 13,
+          fatGrams: 30,
+          fiberGrams: 3,
+          sugarGrams: 5,
+          sodiumMg: 620,
+          micronutrients: ["calcium", "phosphorus", "vitamin B12"],
+          healthNotes: ["Strong protein and calcium source", "Useful for muscle gain goals"],
+          cautions: ["High fat if cooked with cream, butter, or extra oil"],
+          source: "food-database",
+        },
+      },
+      {
+        terms: ["idli", "sambar"],
+        analysis: {
+          mealName: "Idli sambar",
+          confidence: "high",
+          servingSize: "3 idli + 1 bowl sambar",
+          calories: 300,
+          proteinGrams: 11,
+          carbsGrams: 55,
+          fatGrams: 4,
+          fiberGrams: 7,
+          sugarGrams: 3,
+          sodiumMg: 540,
+          micronutrients: ["B vitamins", "iron", "potassium"],
+          healthNotes: ["Light breakfast with fermented batter", "Sambar adds protein and vegetables"],
+          cautions: ["Chutney quantity can add extra calories"],
+          source: "food-database",
+        },
+      },
+      {
+        terms: ["chicken"],
+        analysis: {
+          mealName: "Chicken meal",
+          confidence: "medium",
+          servingSize: "1 plate",
+          calories: 480,
+          proteinGrams: 38,
+          carbsGrams: 35,
+          fatGrams: 18,
+          fiberGrams: 4,
+          sugarGrams: 3,
+          sodiumMg: 720,
+          micronutrients: ["vitamin B12", "niacin", "selenium", "zinc"],
+          healthNotes: ["High protein option", "Good fit for strength and satiety goals"],
+          cautions: ["Fried or creamy preparation can double calories"],
+          source: "text-estimate",
+        },
+      },
+    ];
+
+    const matched = presets.find((preset) =>
+      preset.terms.some((term) => lower.includes(term)),
+    );
+
+    const analysis = matched?.analysis ?? {
+      mealName: cleanFoodName,
+      confidence: "low",
+      servingSize: "1 typical serving",
+      calories: 350,
+      proteinGrams: 12,
+      carbsGrams: 45,
+      fatGrams: 12,
+      fiberGrams: 5,
+      sugarGrams: 6,
+      sodiumMg: 500,
+      micronutrients: ["varies by ingredients"],
+      healthNotes: ["This is an approximate estimate until image AI or a verified nutrition API is connected"],
+      cautions: ["Portion size, oil, sugar, and sauces can change calories a lot"],
+      source: "text-estimate",
+    };
+
+    return {
+      success: true,
+      data: { analysis },
+      source: "local" as const,
+    };
   }
 
   async saveHealthMetrics(userId: string, metrics: unknown) {

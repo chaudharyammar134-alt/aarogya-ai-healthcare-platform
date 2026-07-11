@@ -106,8 +106,8 @@ const metricConfig = [
     digits: 0,
   },
   {
-    metric: "Calories Burned",
-    key: "caloriesBurned" as const,
+    metric: "Calories Consumed",
+    key: "caloriesConsumed" as const,
     target: 2000,
     unit: "kcal/day",
     icon: Zap,
@@ -131,6 +131,7 @@ const emptyCheckIn = {
   waterGlasses: "0",
   steps: "0",
   sleepHours: "",
+  caloriesConsumed: "0",
   caloriesBurned: "0",
   proteinGrams: "0",
   mood: "good" as Mood,
@@ -180,6 +181,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
         steps: String(todayLog.steps),
         sleepHours:
           todayLog.sleepHours === null ? "" : String(todayLog.sleepHours),
+        caloriesConsumed: String(todayLog.caloriesConsumed ?? 0),
         caloriesBurned: String(todayLog.caloriesBurned),
         proteinGrams: String(todayLog.proteinGrams),
         mood: todayLog.mood,
@@ -209,7 +211,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
   const weeklyOverview = useMemo(() => {
     const water = logs.map((entry) => entry.waterGlasses);
     const steps = logs.map((entry) => entry.steps);
-    const calories = logs.map((entry) => entry.caloriesBurned);
+    const calories = logs.map((entry) => entry.caloriesConsumed ?? 0);
     const protein = logs.map((entry) => entry.proteinGrams);
     const sleep = logs
       .map((entry) => entry.sleepHours)
@@ -220,7 +222,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
       averages: {
         waterGlasses: roundMetric(average(water), 1),
         steps: roundMetric(average(steps)),
-        caloriesBurned: roundMetric(average(calories)),
+        caloriesConsumed: roundMetric(average(calories)),
         proteinGrams: roundMetric(average(protein)),
         sleepHours: roundMetric(average(sleep), 1),
       },
@@ -294,7 +296,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
     () => ({
       waterGlasses: activePlan?.summary.waterTargetGlasses ?? 8,
       steps: activePlan?.summary.stepsTarget ?? 10000,
-      caloriesBurned: activePlan?.summary.calorieTarget ?? 2000,
+      caloriesConsumed: activePlan?.summary.calorieTarget ?? 2000,
       proteinGrams: proteinTarget,
     }),
     [activePlan, proteinTarget],
@@ -314,6 +316,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
     field:
       | "waterGlasses"
       | "steps"
+      | "caloriesConsumed"
       | "caloriesBurned"
       | "proteinGrams",
     amount: number,
@@ -341,6 +344,7 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
       waterGlasses: Number(checkIn.waterGlasses || 0),
       steps: Number(checkIn.steps || 0),
       sleepHours: checkIn.sleepHours ? Number(checkIn.sleepHours) : null,
+      caloriesConsumed: Number(checkIn.caloriesConsumed || 0),
       caloriesBurned: Number(checkIn.caloriesBurned || 0),
       proteinGrams: Number(checkIn.proteinGrams || 0),
       mood: checkIn.mood,
@@ -545,23 +549,23 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
               <div className="rounded-2xl bg-orange-50 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-sm font-medium text-wellness-dark">Calories Burned</div>
+                    <div className="text-sm font-medium text-wellness-dark">Calories Consumed</div>
                     <div className="text-xs text-wellness-light">
                       Keep it approximate. The plan cares more about direction than perfect precision.
                     </div>
                   </div>
                   <Badge className="bg-white text-orange-700 border border-orange-200">
-                    {checkIn.caloriesBurned} kcal
+                    {checkIn.caloriesConsumed} kcal
                   </Badge>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesBurned", 100)}>
+                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesConsumed", 100)}>
                     +100
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesBurned", 200)}>
+                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesConsumed", 200)}>
                     +200
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesBurned", 350)}>
+                  <Button type="button" variant="outline" onClick={() => incrementCheckInValue("caloriesConsumed", 350)}>
                     +350
                   </Button>
                 </div>
@@ -638,12 +642,12 @@ export function ProgressScreen({ user, onNavigate }: ProgressScreenProps) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-wellness-light mb-1 block">Calories burned</label>
+                  <label className="text-xs text-wellness-light mb-1 block">Calories consumed</label>
                   <Input
                     type="number"
                     min="0"
-                    value={checkIn.caloriesBurned}
-                    onChange={(event) => handleFieldChange("caloriesBurned", event.target.value)}
+                    value={checkIn.caloriesConsumed}
+                    onChange={(event) => handleFieldChange("caloriesConsumed", event.target.value)}
                   />
                 </div>
                 <div>

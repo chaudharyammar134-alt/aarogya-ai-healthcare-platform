@@ -1,9 +1,28 @@
-import { useState } from 'react';
-import { Search, Apple, ChevronLeft, Camera, Utensils, TrendingUp, Clock } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Badge } from './ui/badge';
-import { UserData } from '../App';
+import { useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  Apple,
+  Camera,
+  ChevronLeft,
+  CheckCircle2,
+  Loader2,
+  Save,
+  Search,
+  Sparkles,
+  TrendingUp,
+  Upload,
+  Utensils,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Badge } from "./ui/badge";
+import type { UserData } from "../App";
+import {
+  apiClient,
+  type DailyHealthLog,
+  type NutritionAnalysis,
+} from "../utils/api-client";
+import { todayPlanDate } from "../utils/daily-plan-state";
 
 interface NutritionScreenProps {
   user: UserData | null;
@@ -12,427 +31,478 @@ interface NutritionScreenProps {
 
 interface FoodItem {
   name: string;
-  nameHindi: string;
   category: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
   fiber: number;
-  image: string;
   servingSize: string;
   healthBenefits: string[];
   restrictions?: string[];
 }
 
-interface MealPlan {
-  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  time: string;
-  foods: FoodItem[];
-  totalCalories: number;
-  description: string;
-}
+const indianFoods: FoodItem[] = [
+  {
+    name: "Dal Chawal",
+    category: "Main Course",
+    calories: 430,
+    protein: 16,
+    carbs: 72,
+    fat: 7,
+    fiber: 9,
+    servingSize: "1 medium plate",
+    healthBenefits: ["Vegetarian protein pairing", "High fiber", "Comfortable everyday meal"],
+  },
+  {
+    name: "Roti with Sabzi",
+    category: "Main Course",
+    calories: 360,
+    protein: 11,
+    carbs: 62,
+    fat: 8,
+    fiber: 8,
+    servingSize: "2 rotis + 1 bowl sabzi",
+    healthBenefits: ["Balanced carbs", "Vegetable micronutrients", "Good satiety"],
+    restrictions: ["Gluten"],
+  },
+  {
+    name: "Idli Sambar",
+    category: "Breakfast",
+    calories: 300,
+    protein: 11,
+    carbs: 55,
+    fat: 4,
+    fiber: 7,
+    servingSize: "3 idli + 1 bowl sambar",
+    healthBenefits: ["Light breakfast", "Fermented batter", "Dal-based protein"],
+  },
+  {
+    name: "Paneer Curry",
+    category: "Protein",
+    calories: 410,
+    protein: 22,
+    carbs: 13,
+    fat: 30,
+    fiber: 3,
+    servingSize: "1 bowl",
+    healthBenefits: ["High protein", "Calcium rich", "Useful for muscle goals"],
+    restrictions: ["Dairy"],
+  },
+  {
+    name: "Chicken Rice Bowl",
+    category: "Protein",
+    calories: 480,
+    protein: 38,
+    carbs: 35,
+    fat: 18,
+    fiber: 4,
+    servingSize: "1 plate",
+    healthBenefits: ["High protein", "Good for strength goals", "Filling meal"],
+  },
+];
+
+const confidenceClass: Record<NutritionAnalysis["confidence"], string> = {
+  high: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  medium: "bg-amber-100 text-amber-700 border-amber-200",
+  low: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+const todayDate = () => new Date().toISOString().slice(0, 10);
+
+const emptyAnalysis: NutritionAnalysis | null = null;
 
 export function NutritionScreen({ user, onBack }: NutritionScreenProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTab, setSelectedTab] = useState<'search' | 'plan' | 'track'>('plan');
-  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [selectedTab, setSelectedTab] = useState<"analyze" | "plan" | "database">("analyze");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mealName, setMealName] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<NutritionAnalysis | null>(emptyAnalysis);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock Indian food database
-  const indianFoods: FoodItem[] = [
-    {
-      name: 'Dal Chawal',
-      nameHindi: 'दाल चावल',
-      category: 'Main Course',
-      calories: 320,
-      protein: 12,
-      carbs: 58,
-      fat: 4,
-      fiber: 8,
-      image: '🍛',
-      servingSize: '1 bowl (200g)',
-      healthBenefits: ['Complete protein', 'Rich in fiber', 'Good for digestion'],
-      restrictions: []
-    },
-    {
-      name: 'Roti with Sabzi',
-      nameHindi: 'रोटी सब्जी',
-      category: 'Main Course',
-      calories: 280,
-      protein: 10,
-      carbs: 52,
-      fat: 3,
-      fiber: 6,
-      image: '🫓',
-      servingSize: '2 roti + 1 bowl sabzi',
-      healthBenefits: ['Whole grains', 'Vitamins from vegetables', 'Balanced meal'],
-      restrictions: ['Gluten']
-    },
-    {
-      name: 'Idli Sambar',
-      nameHindi: 'इडली सांबर',
-      category: 'Breakfast',
-      calories: 250,
-      protein: 8,
-      carbs: 45,
-      fat: 2,
-      fiber: 5,
-      image: '🍜',
-      servingSize: '3 idli + sambar',
-      healthBenefits: ['Probiotic', 'Easy to digest', 'Low fat'],
-      restrictions: []
-    },
-    {
-      name: 'Paneer Curry',
-      nameHindi: 'पनीर करी',
-      category: 'Main Course',
-      calories: 380,
-      protein: 18,
-      carbs: 12,
-      fat: 28,
-      fiber: 3,
-      image: '🧀',
-      servingSize: '1 bowl (150g)',
-      healthBenefits: ['High protein', 'Calcium rich', 'Good for bones'],
-      restrictions: ['Dairy']
-    },
-    {
-      name: 'Upma',
-      nameHindi: 'उपमा',
-      category: 'Breakfast',
-      calories: 200,
-      protein: 6,
-      carbs: 35,
-      fat: 4,
-      fiber: 4,
-      image: '🌾',
-      servingSize: '1 bowl (150g)',
-      healthBenefits: ['Quick energy', 'Rich in fiber', 'Easy to digest'],
-      restrictions: ['Gluten']
-    },
-    {
-      name: 'Mixed Vegetable Curry',
-      nameHindi: 'मिक्स सब्जी',
-      category: 'Main Course',
-      calories: 180,
-      protein: 5,
-      carbs: 25,
-      fat: 6,
-      fiber: 8,
-      image: '🥬',
-      servingSize: '1 bowl (200g)',
-      healthBenefits: ['Rich in vitamins', 'Antioxidants', 'Low calorie'],
-      restrictions: []
-    }
-  ];
-
-  // AI-generated meal plan based on user data
-  const generateMealPlan = (): MealPlan[] => {
-    const plans: MealPlan[] = [
-      {
-        mealType: 'breakfast',
-        time: '8:00 AM',
-        foods: [indianFoods[2]], // Idli Sambar
-        totalCalories: 250,
-        description: 'Light, easy to digest breakfast to start your day'
-      },
-      {
-        mealType: 'lunch',
-        time: '1:00 PM',
-        foods: [indianFoods[0], indianFoods[5]], // Dal Chawal + Mixed Veg
-        totalCalories: 500,
-        description: 'Complete protein and fiber rich lunch'
-      },
-      {
-        mealType: 'snack',
-        time: '5:00 PM',
-        foods: [],
-        totalCalories: 150,
-        description: 'Green tea with 2 digestive biscuits'
-      },
-      {
-        mealType: 'dinner',
-        time: '8:00 PM',
-        foods: [indianFoods[1]], // Roti with Sabzi
-        totalCalories: 280,
-        description: 'Light dinner for better sleep'
-      }
-    ];
-
-    // Adjust based on user's medical conditions
-    if (user?.medicalConditions.some(c => c.name.includes('Diabetes'))) {
-      plans.forEach(plan => {
-        plan.description += ' (Low GI foods recommended for diabetes)';
-      });
-    }
-
-    if (user?.medicalConditions.some(c => c.name.includes('Blood Pressure'))) {
-      plans.forEach(plan => {
-        plan.description += ' (Low sodium preparation)';
-      });
-    }
-
-    return plans;
-  };
-
-  const mealPlan = generateMealPlan();
-  const totalDayCalories = mealPlan.reduce((sum, meal) => sum + meal.totalCalories, 0);
-
-  const filteredFoods = indianFoods.filter(food =>
-    food.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    food.nameHindi.includes(searchQuery) ||
-    food.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFoods = useMemo(
+    () =>
+      indianFoods.filter(
+        (food) =>
+          food.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          food.category.toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
+    [searchQuery],
   );
 
-  const renderSearchTab = () => (
+  const dailyNutrition = useMemo(() => {
+    const calorieTarget = user?.goals?.some((goal) =>
+      goal.toLowerCase().includes("weight-loss"),
+    )
+      ? 1800
+      : user?.goals?.some((goal) =>
+            goal.toLowerCase().includes("muscle") ||
+            goal.toLowerCase().includes("weight-gain"),
+          )
+        ? 2400
+        : 2100;
+
+    const proteinTarget = Math.max(55, Math.round((user?.weight ?? 65) * 1.2));
+    return { calorieTarget, proteinTarget };
+  }, [user?.goals, user?.weight]);
+
+  const handleImageSelect = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImagePreview(String(reader.result));
+      setMessage("Photo added. Add the meal name or main ingredients, then analyze.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyze = async (nameOverride?: string) => {
+    const nextMealName = (nameOverride ?? mealName).trim();
+    if (!nextMealName) {
+      setMessage("Please enter the meal name or main ingredients first.");
+      return;
+    }
+
+    setMealName(nextMealName);
+    setIsAnalyzing(true);
+    setMessage(null);
+
+    const response = await apiClient.analyzeNutrition(nextMealName);
+    const nextAnalysis = response.data?.analysis ?? null;
+
+    if (response.success && nextAnalysis) {
+      setAnalysis({
+        ...nextAnalysis,
+        source: imagePreview ? "image-assisted-estimate" : nextAnalysis.source,
+      });
+      setMessage(
+        imagePreview
+          ? "Meal analyzed with photo context and ingredient text. Full visual AI can be plugged in next."
+          : "Meal analyzed from the nutrition database.",
+      );
+    } else {
+      setMessage(response.error ?? "Could not analyze this meal yet.");
+    }
+
+    setIsAnalyzing(false);
+  };
+
+  const handleSaveMeal = async () => {
+    if (!user?.id || !analysis) {
+      setMessage("Please log in and analyze a meal before saving.");
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    const today = todayDate();
+    const logsResponse = await apiClient.getDailyHealthLogs(user.id, 7);
+    const existingLog = logsResponse.data?.logs.find(
+      (entry) => entry.logDate === today,
+    );
+
+    const baseLog: Partial<DailyHealthLog> = existingLog ?? {};
+    const mealNote = `${analysis.mealName}: ${analysis.calories} kcal, ${analysis.proteinGrams}g protein`;
+    const response = await apiClient.saveDailyHealthLog(user.id, {
+      logDate: today,
+      waterGlasses: baseLog.waterGlasses ?? 0,
+      steps: baseLog.steps ?? 0,
+      sleepHours: baseLog.sleepHours ?? null,
+      caloriesConsumed: (baseLog.caloriesConsumed ?? 0) + analysis.calories,
+      caloriesBurned: baseLog.caloriesBurned ?? 0,
+      proteinGrams: (baseLog.proteinGrams ?? 0) + analysis.proteinGrams,
+      mood: baseLog.mood ?? "good",
+      notes: [baseLog.notes, mealNote].filter(Boolean).join(" | "),
+    });
+
+    if (response.success) {
+      await apiClient.generateDailyPlan(user.id, user, {
+        planDate: todayPlanDate(),
+        updatedFrom: "progress",
+        updateReason: "Today's plan updated automatically because a meal was saved.",
+      });
+      setMessage("Meal saved. Progress, Daily Plan, and AI Chat can now use this nutrition data.");
+    } else {
+      setMessage(response.error ?? "Meal could not be saved.");
+    }
+
+    setIsSaving(false);
+  };
+
+  const renderAnalyzeTab = () => (
+    <div className="space-y-5">
+      <div className="rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-orange-50 p-5 border border-emerald-100">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-100 flex items-center justify-center">
+            <Camera className="w-5 h-5 text-emerald-700" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-wellness-dark">Meal Photo Nutrition</h3>
+            <p className="text-sm text-wellness-light">
+              Add a photo and type the meal name or ingredients. Aarogya estimates calories,
+              protein, macros, nutrients, and cautions.
+            </p>
+          </div>
+        </div>
+
+        {imagePreview ? (
+          <img
+            src={imagePreview}
+            alt="Selected meal"
+            className="w-full h-44 object-cover rounded-2xl mb-4 border border-white shadow-sm"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-36 rounded-2xl border border-dashed border-emerald-300 bg-white/70 flex flex-col items-center justify-center text-emerald-700 mb-4"
+          >
+            <Upload className="w-7 h-7 mb-2" />
+            <span className="text-sm font-medium">Upload meal photo</span>
+            <span className="text-xs text-wellness-light">JPG or PNG from your device</span>
+          </button>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => handleImageSelect(event.target.files?.[0])}
+        />
+
+        <div className="space-y-3">
+          <Input
+            placeholder="Example: dal chawal, paneer curry, chicken rice bowl"
+            value={mealName}
+            onChange={(event) => setMealName(event.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              {imagePreview ? "Change Photo" : "Add Photo"}
+            </Button>
+            <Button
+              type="button"
+              className="wellness-green text-white"
+              disabled={isAnalyzing}
+              onClick={() => void handleAnalyze()}
+            >
+              {isAnalyzing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              Analyze
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {analysis ? (
+        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm space-y-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-wellness-dark">{analysis.mealName}</h3>
+              <p className="text-sm text-wellness-light">{analysis.servingSize}</p>
+            </div>
+            <Badge className={confidenceClass[analysis.confidence]}>
+              {analysis.confidence} confidence
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-orange-50 p-4">
+              <div className="text-2xl font-semibold text-orange-700">
+                {analysis.calories}
+              </div>
+              <div className="text-xs text-wellness-light">Calories</div>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 p-4">
+              <div className="text-2xl font-semibold text-emerald-700">
+                {analysis.proteinGrams}g
+              </div>
+              <div className="text-xs text-wellness-light">Protein</div>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <div className="text-lg font-semibold text-blue-700">
+                {analysis.carbsGrams}g carbs
+              </div>
+              <div className="text-xs text-wellness-light">
+                {analysis.fiberGrams}g fiber, {analysis.sugarGrams}g sugar
+              </div>
+            </div>
+            <div className="rounded-2xl bg-purple-50 p-4">
+              <div className="text-lg font-semibold text-purple-700">
+                {analysis.fatGrams}g fat
+              </div>
+              <div className="text-xs text-wellness-light">
+                {analysis.sodiumMg}mg sodium
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-wellness-dark mb-2">
+              Nutrients detected
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {analysis.micronutrients.map((item) => (
+                <Badge key={item} variant="outline" className="border-emerald-200 text-emerald-700">
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {analysis.healthNotes.map((note) => (
+              <div key={note} className="flex items-start gap-2 text-sm text-wellness-dark">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                <span>{note}</span>
+              </div>
+            ))}
+            {analysis.cautions.map((caution) => (
+              <div key={caution} className="flex items-start gap-2 text-sm text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <span>{caution}</span>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            className="w-full wellness-green text-white"
+            disabled={isSaving}
+            onClick={() => void handleSaveMeal()}
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Save to Today's Nutrition
+          </Button>
+        </div>
+      ) : null}
+
+      {message ? (
+        <div className="rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {message}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const renderPlanTab = () => (
+    <div className="space-y-5">
+      <div className="rounded-3xl bg-wellness-gray p-5">
+        <h3 className="font-semibold text-wellness-dark mb-3">Today's Nutrition Targets</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white p-4">
+            <div className="text-2xl font-semibold text-wellness-green">
+              {dailyNutrition.calorieTarget}
+            </div>
+            <div className="text-xs text-wellness-light">calories target</div>
+          </div>
+          <div className="rounded-2xl bg-white p-4">
+            <div className="text-2xl font-semibold text-wellness-green">
+              {dailyNutrition.proteinTarget}g
+            </div>
+            <div className="text-xs text-wellness-light">protein target</div>
+          </div>
+        </div>
+      </div>
+
+      {[
+        ["Breakfast", "Protein-first breakfast with fiber and steady carbs."],
+        ["Lunch", "Balanced plate: protein, vegetables, curd, and controlled carbs."],
+        ["Snack", "Fruit, nuts, sprouts, curd, or tea without heavy sugar."],
+        ["Dinner", "Light protein and vegetables, ideally not too close to sleep."],
+      ].map(([meal, description]) => (
+        <div key={meal} className="rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Utensils className="w-4 h-4 text-wellness-green" />
+            <h4 className="font-medium text-wellness-dark">{meal}</h4>
+          </div>
+          <p className="text-sm text-wellness-light">{description}</p>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderDatabaseTab = () => (
     <div className="space-y-4">
       <div className="relative">
         <Search className="absolute left-3 top-3 w-4 h-4 text-wellness-light" />
         <Input
           placeholder="Search Indian foods..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
           className="pl-10"
         />
       </div>
 
-      <div className="grid gap-4">
-        {filteredFoods.map((food, index) => (
-          <div
-            key={index}
-            className="p-4 border border-gray-200 rounded-wellness cursor-pointer hover:shadow-wellness transition-shadow"
-            onClick={() => setSelectedFood(food)}
-          >
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">{food.image}</span>
-              <div className="flex-1">
-                <h4 className="text-wellness-dark font-medium">{food.name}</h4>
-                <p className="text-sm text-wellness-light">{food.nameHindi}</p>
-                <div className="flex items-center space-x-4 mt-1">
-                  <span className="text-xs text-wellness-green">{food.calories} cal</span>
-                  <span className="text-xs text-wellness-light">P: {food.protein}g</span>
-                  <span className="text-xs text-wellness-light">C: {food.carbs}g</span>
-                  <span className="text-xs text-wellness-light">F: {food.fat}g</span>
-                </div>
-              </div>
+      {filteredFoods.map((food) => (
+        <button
+          key={food.name}
+          type="button"
+          onClick={() => void handleAnalyze(food.name)}
+          className="w-full text-left p-4 border border-gray-200 rounded-2xl hover:shadow-wellness transition-shadow bg-white"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-wellness-dark font-medium">{food.name}</h4>
+              <p className="text-xs text-wellness-light">{food.category} | {food.servingSize}</p>
             </div>
+            <Badge variant="secondary">{food.calories} kcal</Badge>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderPlanTab = () => (
-    <div className="space-y-6">
-      {/* Daily Summary */}
-      <div className="p-4 bg-wellness-gray rounded-wellness">
-        <h3 className="text-wellness-dark font-medium mb-2">Today's Plan</h3>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-wellness-light">Total Calories</span>
-          <span className="text-wellness-green font-medium">{totalDayCalories} cal</span>
-        </div>
-        {user?.medicalConditions.length ? (
-          <p className="text-xs text-wellness-light mt-2">
-            ⚡ Adjusted for your health conditions
-          </p>
-        ) : null}
-      </div>
-
-      {/* Meal Plans */}
-      {mealPlan.map((meal, index) => (
-        <div key={index} className="p-4 border border-gray-200 rounded-wellness">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <Utensils className="w-4 h-4 text-wellness-green" />
-              <h4 className="text-wellness-dark font-medium capitalize">{meal.mealType}</h4>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="w-3 h-3 text-wellness-light" />
-              <span className="text-sm text-wellness-light">{meal.time}</span>
-            </div>
+          <div className="flex flex-wrap gap-3 mt-3 text-xs text-wellness-light">
+            <span>Protein {food.protein}g</span>
+            <span>Carbs {food.carbs}g</span>
+            <span>Fat {food.fat}g</span>
+            <span>Fiber {food.fiber}g</span>
           </div>
-
-          <p className="text-sm text-wellness-light mb-3">{meal.description}</p>
-
-          {meal.foods.length > 0 ? (
-            <div className="space-y-2">
-              {meal.foods.map((food, foodIndex) => (
-                <div key={foodIndex} className="flex items-center justify-between p-2 bg-wellness-gray rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <span>{food.image}</span>
-                    <div>
-                      <span className="text-sm text-wellness-dark">{food.name}</span>
-                      <p className="text-xs text-wellness-light">{food.servingSize}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm text-wellness-green">{food.calories} cal</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-3 bg-wellness-yellow bg-opacity-20 rounded-lg">
-              <p className="text-sm text-wellness-dark">Green tea with 2 digestive biscuits</p>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-            <span className="text-sm text-wellness-light">Meal Total</span>
-            <span className="text-wellness-green font-medium">{meal.totalCalories} cal</span>
-          </div>
-        </div>
+        </button>
       ))}
-
-      {/* AI Suggestions */}
-      <div className="p-4 bg-gradient-wellness text-white rounded-wellness">
-        <h4 className="font-medium mb-2">🤖 AI Nutrition Tip</h4>
-        <p className="text-sm">
-          {user?.medicalConditions.some(c => c.name.includes('Diabetes'))
-            ? 'Include more fiber-rich foods and avoid refined sugars. Your meal plan is optimized for blood sugar control.'
-            : user?.goals?.includes('Weight Loss')
-            ? 'Your calorie intake is set for gradual weight loss. Drink water before meals to feel fuller.'
-            : 'Your balanced meal plan provides all essential nutrients. Consider adding seasonal fruits as snacks.'}
-        </p>
-      </div>
     </div>
   );
-
-  const renderTrackTab = () => (
-    <div className="space-y-6">
-      <div className="text-center space-y-4">
-        <Camera className="w-16 h-16 text-wellness-green mx-auto" />
-        <h3 className="text-wellness-dark">Food Tracking</h3>
-        <p className="text-wellness-light text-sm">
-          Take a photo of your meal for instant nutrition analysis
-        </p>
-        <Button className="wellness-green text-white">
-          <Camera className="w-4 h-4 mr-2" />
-          Scan Your Meal
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        <h4 className="text-wellness-dark">Recent Meals</h4>
-        <div className="space-y-3">
-          {['Breakfast: Idli Sambar', 'Lunch: Dal Chawal', 'Snack: Tea & Biscuits'].map((meal, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-wellness-gray rounded-lg">
-              <span className="text-wellness-dark">{meal}</span>
-              <Badge variant="secondary">Tracked</Badge>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="p-4 border border-gray-200 rounded-wellness">
-        <h4 className="text-wellness-dark font-medium mb-3">Progress This Week</h4>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span className="text-sm text-wellness-light">Calories</span>
-            <span className="text-sm text-wellness-green">1,850 / 2,000</span>
-          </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full">
-            <div className="w-4/5 h-2 wellness-green rounded-full" />
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-wellness-light">Protein</span>
-            <span className="text-sm text-wellness-green">65g / 60g</span>
-          </div>
-          <div className="w-full h-2 bg-gray-200 rounded-full">
-            <div className="w-full h-2 wellness-green rounded-full" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (selectedFood) {
-    return (
-      <div className="min-h-screen bg-white">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <Button variant="ghost" onClick={() => setSelectedFood(null)}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-wellness-dark font-medium">Food Details</h2>
-          <div />
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <span className="text-6xl">{selectedFood.image}</span>
-            <h3 className="text-wellness-dark">{selectedFood.name}</h3>
-            <p className="text-wellness-light">{selectedFood.nameHindi}</p>
-            <Badge variant="secondary">{selectedFood.category}</Badge>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-wellness-gray rounded-wellness text-center">
-              <p className="text-2xl font-medium text-wellness-green">{selectedFood.calories}</p>
-              <p className="text-sm text-wellness-light">Calories</p>
-            </div>
-            <div className="p-4 bg-wellness-gray rounded-wellness text-center">
-              <p className="text-2xl font-medium text-wellness-green">{selectedFood.protein}g</p>
-              <p className="text-sm text-wellness-light">Protein</p>
-            </div>
-            <div className="p-4 bg-wellness-gray rounded-wellness text-center">
-              <p className="text-2xl font-medium text-wellness-green">{selectedFood.carbs}g</p>
-              <p className="text-sm text-wellness-light">Carbs</p>
-            </div>
-            <div className="p-4 bg-wellness-gray rounded-wellness text-center">
-              <p className="text-2xl font-medium text-wellness-green">{selectedFood.fat}g</p>
-              <p className="text-sm text-wellness-light">Fat</p>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-wellness-dark font-medium mb-2">Health Benefits</h4>
-            <div className="flex flex-wrap gap-2">
-              {selectedFood.healthBenefits.map((benefit, index) => (
-                <Badge key={index} variant="outline" className="border-wellness-green text-wellness-green">
-                  {benefit}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4 bg-wellness-gray rounded-wellness">
-            <p className="text-sm text-wellness-light">
-              <strong>Serving Size:</strong> {selectedFood.servingSize}
-            </p>
-          </div>
-
-          <Button className="w-full wellness-green text-white">
-            Add to Today's Plan
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-100">
         <Button variant="ghost" onClick={onBack}>
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <h2 className="text-wellness-dark font-medium">Nutrition Hub</h2>
-        <div />
+        <div className="text-center">
+          <h2 className="text-wellness-dark font-medium">Nutrition Hub</h2>
+          <p className="text-xs text-wellness-light">Meal analysis and food tracking</p>
+        </div>
+        <Apple className="w-5 h-5 text-wellness-green" />
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-gray-100">
         {[
-          { key: 'plan', label: 'AI Plan', icon: TrendingUp },
-          { key: 'search', label: 'Food DB', icon: Search },
-          { key: 'track', label: 'Track', icon: Camera }
+          { key: "analyze", label: "Analyze", icon: Camera },
+          { key: "plan", label: "Plan", icon: TrendingUp },
+          { key: "database", label: "Food DB", icon: Search },
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setSelectedTab(key as any)}
+            type="button"
+            onClick={() => setSelectedTab(key as typeof selectedTab)}
             className={`flex-1 flex items-center justify-center space-x-1 py-3 ${
               selectedTab === key
-                ? 'text-wellness-green border-b-2 border-wellness-green'
-                : 'text-wellness-light'
+                ? "text-wellness-green border-b-2 border-wellness-green"
+                : "text-wellness-light"
             }`}
           >
             <Icon className="w-4 h-4" />
@@ -441,11 +511,10 @@ export function NutritionScreen({ user, onBack }: NutritionScreenProps) {
         ))}
       </div>
 
-      {/* Content */}
       <div className="p-6">
-        {selectedTab === 'search' && renderSearchTab()}
-        {selectedTab === 'plan' && renderPlanTab()}
-        {selectedTab === 'track' && renderTrackTab()}
+        {selectedTab === "analyze" ? renderAnalyzeTab() : null}
+        {selectedTab === "plan" ? renderPlanTab() : null}
+        {selectedTab === "database" ? renderDatabaseTab() : null}
       </div>
     </div>
   );

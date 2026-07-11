@@ -45,6 +45,7 @@ const normalizeDailyHealthLog = (
       data.sleepHours === undefined || data.sleepHours === null
         ? null
         : Number(data.sleepHours),
+    caloriesConsumed: Number(data.caloriesConsumed ?? 0),
     caloriesBurned: Number(data.caloriesBurned ?? 0),
     proteinGrams: Number(data.proteinGrams ?? 0),
     mood: (data.mood ?? "good") as DailyHealthLog["mood"],
@@ -139,6 +140,7 @@ export const saveFirebaseDailyHealthLog = async (
       waterGlasses: 0,
       steps: 0,
       sleepHours: null,
+      caloriesConsumed: 0,
       caloriesBurned: 0,
       proteinGrams: 0,
       mood: "good",

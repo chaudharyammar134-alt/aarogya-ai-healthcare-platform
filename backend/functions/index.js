@@ -236,6 +236,150 @@ const requireOwner = (req, res, targetUserId) => {
   return true;
 };
 
+const nutritionFoodDatabase = [
+  {
+    terms: ["dal", "chawal", "rice"],
+    analysis: {
+      mealName: "Dal chawal",
+      confidence: "high",
+      servingSize: "1 medium plate",
+      calories: 430,
+      proteinGrams: 16,
+      carbsGrams: 72,
+      fatGrams: 7,
+      fiberGrams: 9,
+      sugarGrams: 4,
+      sodiumMg: 520,
+      micronutrients: ["iron", "folate", "magnesium", "potassium"],
+      healthNotes: [
+        "Good vegetarian protein pairing.",
+        "Dal adds fiber and helps the meal feel more filling.",
+      ],
+      cautions: ["Keep rice portion controlled for weight loss or diabetes goals."],
+      source: "food-database",
+    },
+  },
+  {
+    terms: ["roti", "chapati", "sabzi"],
+    analysis: {
+      mealName: "Roti with sabzi",
+      confidence: "high",
+      servingSize: "2 rotis + 1 bowl sabzi",
+      calories: 360,
+      proteinGrams: 11,
+      carbsGrams: 62,
+      fatGrams: 8,
+      fiberGrams: 8,
+      sugarGrams: 6,
+      sodiumMg: 480,
+      micronutrients: ["vitamin A", "vitamin C", "iron", "zinc"],
+      healthNotes: [
+        "Balanced everyday Indian meal.",
+        "Vegetables improve fiber and micronutrient density.",
+      ],
+      cautions: ["Oil and salt can change the estimate significantly."],
+      source: "food-database",
+    },
+  },
+  {
+    terms: ["paneer"],
+    analysis: {
+      mealName: "Paneer curry",
+      confidence: "high",
+      servingSize: "1 bowl",
+      calories: 410,
+      proteinGrams: 22,
+      carbsGrams: 13,
+      fatGrams: 30,
+      fiberGrams: 3,
+      sugarGrams: 5,
+      sodiumMg: 620,
+      micronutrients: ["calcium", "phosphorus", "vitamin B12"],
+      healthNotes: [
+        "Strong protein and calcium source.",
+        "Useful for muscle gain or higher-protein goals.",
+      ],
+      cautions: ["Cream, butter, or extra oil can make this much heavier."],
+      source: "food-database",
+    },
+  },
+  {
+    terms: ["idli", "sambar"],
+    analysis: {
+      mealName: "Idli sambar",
+      confidence: "high",
+      servingSize: "3 idli + 1 bowl sambar",
+      calories: 300,
+      proteinGrams: 11,
+      carbsGrams: 55,
+      fatGrams: 4,
+      fiberGrams: 7,
+      sugarGrams: 3,
+      sodiumMg: 540,
+      micronutrients: ["B vitamins", "iron", "potassium"],
+      healthNotes: [
+        "Light breakfast with fermented batter.",
+        "Sambar adds protein and vegetables.",
+      ],
+      cautions: ["Chutney quantity can add extra calories."],
+      source: "food-database",
+    },
+  },
+  {
+    terms: ["chicken"],
+    analysis: {
+      mealName: "Chicken meal",
+      confidence: "medium",
+      servingSize: "1 plate",
+      calories: 480,
+      proteinGrams: 38,
+      carbsGrams: 35,
+      fatGrams: 18,
+      fiberGrams: 4,
+      sugarGrams: 3,
+      sodiumMg: 720,
+      micronutrients: ["vitamin B12", "niacin", "selenium", "zinc"],
+      healthNotes: [
+        "High protein option.",
+        "Good fit for strength and satiety goals.",
+      ],
+      cautions: ["Fried or creamy preparation can double calories."],
+      source: "text-estimate",
+    },
+  },
+];
+
+const analyzeNutritionFromText = (foodName) => {
+  const cleanFoodName = String(foodName || "").trim();
+  const lowerFoodName = cleanFoodName.toLowerCase();
+  const matched = nutritionFoodDatabase.find((entry) =>
+    entry.terms.some((term) => lowerFoodName.includes(term)),
+  );
+
+  if (matched) {
+    return matched.analysis;
+  }
+
+  return {
+    mealName: cleanFoodName || "Custom meal",
+    confidence: "low",
+    servingSize: "1 typical serving",
+    calories: 350,
+    proteinGrams: 12,
+    carbsGrams: 45,
+    fatGrams: 12,
+    fiberGrams: 5,
+    sugarGrams: 6,
+    sodiumMg: 500,
+    micronutrients: ["varies by ingredients"],
+    healthNotes: [
+      "This is an approximate estimate until image AI or a verified nutrition API is connected.",
+    ],
+    cautions: ["Portion size, oil, sugar, and sauces can change calories a lot."],
+    source: "text-estimate",
+  };
+};
+
 const buildChatReply = ({ message, user, plan, recentLogs, symptoms }) => {
   const lowerMessage = String(message || "").toLowerCase();
   const latestLog = recentLogs[0] || null;
@@ -398,6 +542,22 @@ app.post("/chat", authenticateFirebaseUser, async (req, res) => {
       error: error instanceof Error ? error.message : "Unknown server error.",
     });
   }
+});
+
+app.post("/nutrition/analyze", async (req, res) => {
+  const { foodName } = req.body || {};
+  if (!foodName || !String(foodName).trim()) {
+    res.status(400).json({ success: false, error: "foodName is required." });
+    return;
+  }
+
+  const analysis = analyzeNutritionFromText(foodName);
+  res.json({
+    success: true,
+    analysis,
+    source: "firebase-functions",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export const api = onRequest(
