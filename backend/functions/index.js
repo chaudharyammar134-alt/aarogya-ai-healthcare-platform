@@ -12,6 +12,8 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const auth = admin.auth();
 const corsMiddleware = cors({ origin: true });
+const geminiApiKey = process.env.GEMINI_API_KEY || "";
+const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 app.use((req, res, next) => corsMiddleware(req, res, next));
 app.use(express.json());
@@ -236,6 +238,120 @@ const requireOwner = (req, res, targetUserId) => {
   return true;
 };
 
+const callGemini = async ({ prompt, imageData, expectJson = false }) => {
+  if (!geminiApiKey) {
+    return null;
+  }
+
+  const parts = [{ text: prompt }];
+  if (imageData) {
+    const match = String(imageData).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (match) {
+      parts.push({
+        inlineData: {
+          mimeType: match[1],
+          data: match[2],
+        },
+      });
+    }
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: expectJson ? 0.2 : 0.45,
+          responseMimeType: expectJson ? "application/json" : "text/plain",
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini request failed with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return payload?.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text || "")
+    .join("")
+    .trim() || null;
+};
+
+const safeJsonParse = (value) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    const match = String(value || "").match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : null;
+  }
+};
+
+const normalizeGeminiChatReply = (parsed, fallback) => ({
+  content:
+    typeof parsed?.content === "string" && parsed.content.trim()
+      ? parsed.content.trim()
+      : fallback.content,
+  suggestions: Array.isArray(parsed?.suggestions)
+    ? parsed.suggestions.slice(0, 4).map(String)
+    : fallback.suggestions,
+  requiresDoctor: Boolean(parsed?.requiresDoctor ?? fallback.requiresDoctor),
+});
+
+const buildGeminiChatReply = async ({ message, user, plan, recentLogs, symptoms }) => {
+  const fallback = buildChatReply({ message, user, plan, recentLogs, symptoms });
+  if (!geminiApiKey) {
+    return fallback;
+  }
+
+  const context = {
+    user: {
+      age: user.age,
+      gender: user.gender,
+      occupation: user.occupation,
+      activityLevel: user.activityLevel,
+      wakeUpTime: user.wakeUpTime,
+      sleepTime: user.sleepTime,
+      goals: user.goals || [],
+      medicalConditions: user.medicalConditions || [],
+    },
+    todayPlanSummary: plan?.generatedPlan?.summary || summarizePlan(user, recentLogs),
+    recentLogs: recentLogs.slice(0, 5),
+    symptoms: symptoms.slice(0, 5),
+  };
+
+  const prompt = `
+You are Aarogya AI, a cautious wellness assistant for a healthcare planning app.
+Use the user's saved context to answer. Do not diagnose disease or prescribe medicine.
+If symptoms sound urgent, set requiresDoctor true and tell the user to consult a doctor/emergency care.
+Keep the answer practical, warm, and under 120 words.
+
+Return only JSON with:
+{
+  "content": "answer",
+  "suggestions": ["short follow-up 1", "short follow-up 2", "short follow-up 3"],
+  "requiresDoctor": false
+}
+
+User question: ${message}
+Saved context:
+${JSON.stringify(context, null, 2)}
+`;
+
+  try {
+    const text = await callGemini({ prompt, expectJson: true });
+    const parsed = safeJsonParse(text);
+    return normalizeGeminiChatReply(parsed, fallback);
+  } catch (error) {
+    console.warn("Gemini chat fallback used:", error instanceof Error ? error.message : error);
+    return fallback;
+  }
+};
+
 const nutritionFoodDatabase = [
   {
     terms: ["dal", "chawal", "rice"],
@@ -380,6 +496,81 @@ const analyzeNutritionFromText = (foodName) => {
   };
 };
 
+const normalizeNutritionAnalysis = (parsed, fallback, imageData) => ({
+  mealName:
+    typeof parsed?.mealName === "string" && parsed.mealName.trim()
+      ? parsed.mealName.trim()
+      : fallback.mealName,
+  confidence: ["low", "medium", "high"].includes(parsed?.confidence)
+    ? parsed.confidence
+    : imageData
+      ? "medium"
+      : fallback.confidence,
+  servingSize:
+    typeof parsed?.servingSize === "string" && parsed.servingSize.trim()
+      ? parsed.servingSize.trim()
+      : fallback.servingSize,
+  calories: Number(parsed?.calories ?? fallback.calories),
+  proteinGrams: Number(parsed?.proteinGrams ?? fallback.proteinGrams),
+  carbsGrams: Number(parsed?.carbsGrams ?? fallback.carbsGrams),
+  fatGrams: Number(parsed?.fatGrams ?? fallback.fatGrams),
+  fiberGrams: Number(parsed?.fiberGrams ?? fallback.fiberGrams),
+  sugarGrams: Number(parsed?.sugarGrams ?? fallback.sugarGrams),
+  sodiumMg: Number(parsed?.sodiumMg ?? fallback.sodiumMg),
+  micronutrients: Array.isArray(parsed?.micronutrients)
+    ? parsed.micronutrients.slice(0, 8).map(String)
+    : fallback.micronutrients,
+  healthNotes: Array.isArray(parsed?.healthNotes)
+    ? parsed.healthNotes.slice(0, 4).map(String)
+    : fallback.healthNotes,
+  cautions: Array.isArray(parsed?.cautions)
+    ? parsed.cautions.slice(0, 4).map(String)
+    : fallback.cautions,
+  source: imageData ? "image-assisted-estimate" : "text-estimate",
+});
+
+const analyzeNutritionWithGemini = async ({ foodName, imageData }) => {
+  const fallback = analyzeNutritionFromText(foodName);
+  if (!geminiApiKey) {
+    return fallback;
+  }
+
+  const prompt = `
+Analyze this meal for a wellness app. Estimate nutrition conservatively.
+If an image is provided, use it as visual context, but do not pretend certainty.
+Return only JSON with this exact shape:
+{
+  "mealName": "meal name",
+  "confidence": "low|medium|high",
+  "servingSize": "estimated serving",
+  "calories": 0,
+  "proteinGrams": 0,
+  "carbsGrams": 0,
+  "fatGrams": 0,
+  "fiberGrams": 0,
+  "sugarGrams": 0,
+  "sodiumMg": 0,
+  "micronutrients": ["nutrient"],
+  "healthNotes": ["short practical note"],
+  "cautions": ["portion/oil/sugar/salt caution"]
+}
+
+Meal text or ingredients: ${foodName}
+`;
+
+  try {
+    const text = await callGemini({ prompt, imageData, expectJson: true });
+    const parsed = safeJsonParse(text);
+    return normalizeNutritionAnalysis(parsed, fallback, imageData);
+  } catch (error) {
+    console.warn(
+      "Gemini nutrition fallback used:",
+      error instanceof Error ? error.message : error,
+    );
+    return fallback;
+  }
+};
+
 const buildChatReply = ({ message, user, plan, recentLogs, symptoms }) => {
   const lowerMessage = String(message || "").toLowerCase();
   const latestLog = recentLogs[0] || null;
@@ -522,7 +713,7 @@ app.post("/chat", authenticateFirebaseUser, async (req, res) => {
       id: String(userId),
     };
 
-    const reply = buildChatReply({
+    const reply = await buildGeminiChatReply({
       message,
       user: safeUser,
       plan: todayPlan,
@@ -545,17 +736,17 @@ app.post("/chat", authenticateFirebaseUser, async (req, res) => {
 });
 
 app.post("/nutrition/analyze", async (req, res) => {
-  const { foodName } = req.body || {};
+  const { foodName, imageData } = req.body || {};
   if (!foodName || !String(foodName).trim()) {
     res.status(400).json({ success: false, error: "foodName is required." });
     return;
   }
 
-  const analysis = analyzeNutritionFromText(foodName);
+  const analysis = await analyzeNutritionWithGemini({ foodName, imageData });
   res.json({
     success: true,
     analysis,
-    source: "firebase-functions",
+    source: geminiApiKey ? "gemini" : "firebase-functions-fallback",
     timestamp: new Date().toISOString(),
   });
 });

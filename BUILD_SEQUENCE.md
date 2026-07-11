@@ -59,9 +59,9 @@ Tasks:
 - Add stronger user context retrieval for profile, plan, logs, symptoms, and nutrition.
 - Save chat threads and messages.
 - Add safety handling for urgent symptoms and medical disclaimers.
-- Prepare later OpenAI integration behind the backend.
+- Prepare Gemini integration behind the backend.
 
-Status: foundation exists
+Status: foundation exists, Gemini provider wiring added
 
 ## Phase 4: Meal Photo Nutrition
 
@@ -76,7 +76,7 @@ Tasks:
 - Estimate calories, protein, carbs, fat, fiber, and meal quality.
 - Feed saved meal data into Progress and AI Chat.
 
-Status: not started
+Status: foundation implemented, production validation still needed
 
 ## Phase 5: Payments And Membership
 

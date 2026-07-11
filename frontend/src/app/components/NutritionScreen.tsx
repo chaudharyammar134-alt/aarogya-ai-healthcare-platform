@@ -170,7 +170,7 @@ export function NutritionScreen({ user, onBack }: NutritionScreenProps) {
     setIsAnalyzing(true);
     setMessage(null);
 
-    const response = await apiClient.analyzeNutrition(nextMealName);
+    const response = await apiClient.analyzeNutrition(nextMealName, imagePreview);
     const nextAnalysis = response.data?.analysis ?? null;
 
     if (response.success && nextAnalysis) {

@@ -1866,7 +1866,7 @@ class ApiClient {
     });
   }
 
-  async analyzeNutrition(foodName: string) {
+  async analyzeNutrition(foodName: string, imageData?: string | null) {
     const cleanFoodName = foodName.trim();
     if (!cleanFoodName) {
       return {
@@ -1882,7 +1882,7 @@ class ApiClient {
         analysis: NutritionAnalysis;
       }>("/nutrition/analyze", {
         method: "POST",
-        body: JSON.stringify({ foodName: cleanFoodName }),
+        body: JSON.stringify({ foodName: cleanFoodName, imageData }),
       });
 
       if (response.success && response.data?.analysis) {
@@ -1896,7 +1896,7 @@ class ApiClient {
 
     const remote = await this.request<{ analysis: NutritionAnalysis }>("/nutrition/analyze", {
       method: "POST",
-      body: JSON.stringify({ foodName: cleanFoodName }),
+      body: JSON.stringify({ foodName: cleanFoodName, imageData }),
     });
     if (remote.success || !runtimeConfig.useMockFallback) return remote;
 

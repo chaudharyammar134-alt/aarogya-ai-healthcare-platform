@@ -4,7 +4,7 @@ Aarogya AI is an ongoing personalized health and wellness web application. Its c
 
 ## Project Status
 
-Working MVP foundation, approximately 65% complete.
+Working MVP foundation, approximately 70% complete.
 
 Implemented:
 
@@ -13,13 +13,14 @@ Implemented:
 - Sleep and wake-time based daily plan generation
 - Daily health, progress, and symptom logging
 - Realtime Firestore updates for core health data
-- Context-aware health assistant foundation
+- Context-aware Gemini health assistant foundation
+- Meal nutrition analysis with optional photo context
 - Membership, payment, and admin interface foundations
 
 In progress:
 
-- Advanced AI assistant integration
-- Meal photo nutrition analysis
+- Saving AI chat threads and advanced safety review
+- Full production meal-photo nutrition validation
 - Live Razorpay payments and webhooks
 - Production-ready admin authorization and analytics
 - Notifications, testing, performance, and launch hardening
@@ -31,6 +32,7 @@ In progress:
 - Database: Cloud Firestore
 - Authentication: Firebase Authentication
 - Realtime: Firestore snapshot listeners
+- AI provider: Google Gemini API through Firebase Functions
 
 ## Repository Structure
 
@@ -90,6 +92,14 @@ cd backend\functions
 npm.cmd install
 ```
 
+Create backend environment values for local function testing:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Set `GEMINI_API_KEY` in `backend/functions/.env` for local emulators. For deployed Firebase Functions, configure the same value as a backend secret/environment value. Never place Gemini or payment secrets in `frontend/.env`.
+
 Deploy from the repository root:
 
 ```powershell
@@ -116,5 +126,4 @@ Current Firestore paths include:
 
 Development order is maintained in [BUILD_SEQUENCE.md](BUILD_SEQUENCE.md).
 
-The next phase is to finish consistency across onboarding, sleep logs, daily plans, Home, Progress, and AI Chat before adding meal-photo analysis and live payments.
-
+The next phase is to finish production hardening for Gemini AI, meal-photo analysis, Razorpay payments, admin authorization, and deployment monitoring.
