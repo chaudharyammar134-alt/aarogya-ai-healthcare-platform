@@ -129,6 +129,27 @@ cd ..
 firebase.cmd deploy --only hosting
 ```
 
+## Vercel Backend Deployment
+
+Use Vercel if Render asks for a card. The repo includes `vercel.json` and an `/api` serverless wrapper for the same backend.
+
+Steps:
+
+1. Import the GitHub repository in Vercel.
+2. Keep the root directory as the repository root.
+3. Add environment variables:
+   - `GEMINI_API_KEY=<your Gemini API key>`
+   - `GEMINI_MODEL=gemini-2.5-flash`
+   - `FIREBASE_SERVICE_ACCOUNT_JSON=<single-line Firebase service account JSON>`
+4. Deploy.
+5. Test `https://your-vercel-app.vercel.app/health`.
+
+After Vercel gives a backend URL, set this in `frontend/.env`:
+
+```powershell
+VITE_FIREBASE_FUNCTIONS_BASE_URL=https://your-vercel-app.vercel.app
+```
+
 Deploy from the repository root:
 
 ```powershell

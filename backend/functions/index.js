@@ -767,6 +767,8 @@ export const api = onRequest(
   app,
 );
 
+export default app;
+
 if (process.env.STANDALONE_SERVER === "true" || process.env.RENDER === "true") {
   const port = Number(process.env.PORT || 8080);
   app.listen(port, () => {
