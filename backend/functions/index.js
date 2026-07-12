@@ -6,7 +6,14 @@ import { onRequest } from "firebase-functions/v2/https";
 const app = express();
 
 if (!admin.apps.length) {
-  admin.initializeApp();
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (serviceAccountJson) {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(serviceAccountJson)),
+    });
+  } else {
+    admin.initializeApp();
+  }
 }
 
 const db = admin.firestore();
@@ -759,3 +766,10 @@ export const api = onRequest(
   },
   app,
 );
+
+if (process.env.STANDALONE_SERVER === "true" || process.env.RENDER === "true") {
+  const port = Number(process.env.PORT || 8080);
+  app.listen(port, () => {
+    console.log(`Aarogya AI backend listening on port ${port}`);
+  });
+}

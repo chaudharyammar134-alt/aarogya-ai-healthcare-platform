@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: aarogya-ai-backend
+    runtime: node
+    rootDir: backend/functions
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STANDALONE_SERVER
+        value: "true"
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false

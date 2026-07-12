@@ -84,6 +84,7 @@ npm.cmd run build
 ## Backend
 
 Firebase Functions live in `backend/functions`.
+The same Express backend can also run as a standalone web service on Render while Google Cloud Billing is under review.
 
 Install backend dependencies:
 
@@ -99,6 +100,34 @@ Copy-Item .env.example .env
 ```
 
 Set `GEMINI_API_KEY` in `backend/functions/.env` for local emulators. For deployed Firebase Functions, configure the same value as a backend secret/environment value. Never place Gemini or payment secrets in `frontend/.env`.
+
+## Render Backend Deployment
+
+Use Render when Firebase Functions deployment is blocked by Google Cloud Billing.
+
+The repository includes `render.yaml`. Create a new Render Blueprint from the GitHub repository and set these environment variables:
+
+- `STANDALONE_SERVER=true`
+- `GEMINI_API_KEY=<your Gemini API key>`
+- `GEMINI_MODEL=gemini-2.5-flash`
+- `FIREBASE_SERVICE_ACCOUNT_JSON=<single-line Firebase service account JSON>`
+
+Do not commit the service account JSON. It must stay only inside Render environment variables.
+
+After Render gives a backend URL, set this in `frontend/.env`:
+
+```powershell
+VITE_FIREBASE_FUNCTIONS_BASE_URL=https://your-render-service.onrender.com
+```
+
+Then rebuild and redeploy hosting:
+
+```powershell
+cd frontend
+npm.cmd run build
+cd ..
+firebase.cmd deploy --only hosting
+```
 
 Deploy from the repository root:
 
