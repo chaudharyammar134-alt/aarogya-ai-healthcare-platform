@@ -25,6 +25,15 @@ const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 app.use((req, res, next) => corsMiddleware(req, res, next));
 app.use(express.json());
 
+app.get("/", (_req, res) => {
+  res.json({
+    success: true,
+    service: "aarogya-ai-functions",
+    status: "online",
+    routes: ["/health", "/users/:userId/context", "/chat", "/nutrition/analyze"],
+  });
+});
+
 const usersCollection = "users";
 
 const todayPlanDate = () => new Date().toISOString().slice(0, 10);
